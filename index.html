@@ -198,16 +198,32 @@ function cpolarBase(){
   return (META && META.cpolar_url) || window.APP_CONFIG.CPOLAR_FALLBACK || '';
 }
 // C2: 外网加载时动态获取当前 cpolar 地址。同步守护检测到免费版地址漂移即把最新地址推到 jsDelivr 的 cpolar_url.json, 前端拉它覆盖 orders.json 死地址。走 CDN 不依赖 cpolar 在线。
-function cpolarUrlJsonUrl(){
-  return (DATA_URL || '').replace(/orders\.json(\?.*)?$/i, 'cpolar_url.json');
+function cpolarUrlJsonUrl(base){
+  return (base || '').replace(/orders\.json(\?.*)?$/i, 'cpolar_url.json');
 }
+// C2: cpolar 地址也双源. 优先 raw 主源, 失败降级 jsDelivr, 图片不依赖单一 CDN
 function fetchCpolarUrl(){
-  const u = cpolarUrlJsonUrl();
-  if(!u) return Promise.resolve(null);
-  return fetch(u + '?t=' + Date.now(), {cache:'no-store'})
+  const u = cpolarUrlJsonUrl(DATA_URL);
+  const uFb = cpolarUrlJsonUrl(window.APP_CONFIG.DATA_URL_FALLBACK);
+  const grab = url => fetch(url + '?t=' + Date.now(), {cache:'no-store'})
     .then(r => r.ok ? r.json() : null)
-    .then(j => (j && j.cpolar_url) ? j.cpolar_url : null)
-    .catch(() => null);
+    .then(j => (j && j.cpolar_url) ? j.cpolar_url : null);
+  return grab(u).catch(() => grab(uFb).catch(() => null));
+}
+// C2: 双源加载工单. 优先 raw.githubusercontent.com(实时最新, push后几秒); 12秒内无响应/失败则降级 jsDelivr(国内加速但 CDN 滞后数小时)
+function loadOrders(){
+  const t = Date.now();
+  const opt = {cache:'no-store'};
+  const rawUrl = (DATA_URL || '') + '?t=' + t;
+  const fbUrl  = (window.APP_CONFIG.DATA_URL_FALLBACK || '') + '?t=' + t;
+  const rawP = fetch(rawUrl, opt).then(r => { if(!r.ok) throw new Error('raw ' + r.status); return r; });
+  const rawWithTimeout = Promise.race([
+    rawP,
+    new Promise((_, rej) => setTimeout(() => rej(new Error('raw timeout')), 12000))
+  ]);
+  return rawWithTimeout
+    .catch(() => { if(!fbUrl) throw new Error('no fallback'); return fetch(fbUrl, opt); })
+    .then(r => r.json());
 }
 // 所有图片加载失败时统一提示(动态创建的 img 也能捕获)
 document.addEventListener('error', function(e){
@@ -602,7 +618,7 @@ function loadPage(append=false){
   // 首次或数据为空时拉 orders.json (jsDelivr 加速, 调用量极低)
   if(!ALL.length){
     const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('请求超时，请检查网络或刷新重试')), 30000));
-    Promise.race([fetch(DATA_URL + '?t=' + Date.now()), timeout]).then(r => r.json()).then(d => {
+    Promise.race([loadOrders(), timeout]).then(d => {
       META = d || {};
       // C2: 先动态取当前 cpolar 地址(免费版地址随机变), 成功则覆盖死地址再拼图
       fetchCpolarUrl().then(fresh => {

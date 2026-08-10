@@ -5,7 +5,10 @@
 // 注意: 写操作在外网首次使用时, 会提示输入内网访问口令(访问口令不写进本文件, 只存浏览器本地)
 window.APP_CONFIG = {
   DATA_MODE: "github",
-  DATA_URL: "https://cdn.jsdelivr.net/gh/vs75yj9gzd-glitch/elevator-orders-public@main/orders.json",
+  // 主源: raw.githubusercontent.com 实时最新(push 后几秒), 但国内偶尔慢/被墙
+  DATA_URL: "https://raw.githubusercontent.com/vs75yj9gzd-glitch/elevator-orders-public/main/orders.json",
+  // 兜底: jsDelivr 国内加速, 但 CDN 缓存滞后数小时(数据不实时). 仅主源失败/超时才用
+  DATA_URL_FALLBACK: "https://cdn.jsdelivr.net/gh/vs75yj9gzd-glitch/elevator-orders-public@main/orders.json",
   CPOLAR_FALLBACK: "",
   CLOSE_TOKEN: "7d2e9a1c4b6f8e30a5c7d9b2e4f6a8c10b3d5e7f92468ace0",
   EDIT_TOKEN: "a3f9c2e7b4d18a6f5e20c9b37d4816af2b5e9c0d74f3a1b8",
