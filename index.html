@@ -108,7 +108,7 @@
 <body>
 <header>
   <h1>盛尧电梯维修工单</h1>
-  <span class="ac">腾讯云 CloudBase · 固定网址</span>
+  <span class="ac">GitHub Pages · jsDelivr 加速 · 公开只读</span>
   <div class="stats" id="stats"></div>
   <button id="refresh-btn" style="margin-left:auto;border:none;background:#2980b9;color:#fff;padding:6px 14px;border-radius:14px;cursor:pointer;font-size:13px">刷新</button>
 </header>
@@ -598,10 +598,11 @@ function submitAction(id, st, res){
 function loadPage(append=false){
   if(LOADING) return;
   LOADING = true;
-  if(!append){ OFFSET = 0; document.getElementById('list').innerHTML = '<div class="loading">加载中…</div>'; }
+  if(!append){ OFFSET = 0; document.getElementById('list').innerHTML = '<div class="loading">正在加载工单数据，首次约 5~15 秒，请稍候…</div>'; }
   // 首次或数据为空时拉 orders.json (jsDelivr 加速, 调用量极低)
   if(!ALL.length){
-    fetch(DATA_URL + '?t=' + Date.now()).then(r => r.json()).then(d => {
+    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('请求超时，请检查网络或刷新重试')), 30000));
+    Promise.race([fetch(DATA_URL + '?t=' + Date.now()), timeout]).then(r => r.json()).then(d => {
       META = d || {};
       // C2: 先动态取当前 cpolar 地址(免费版地址随机变), 成功则覆盖死地址再拼图
       fetchCpolarUrl().then(fresh => {
@@ -631,7 +632,7 @@ function loadPage(append=false){
       });
     }).catch(e => {
       LOADING = false;
-      document.getElementById('list').innerHTML = '<div class="empty">加载失败：'+esc(e)+'<br>请确认同步脚本已运行、仓库已公开且 orders.json 已生成。</div>';
+      document.getElementById('list').innerHTML = '<div class="empty">加载失败：'+esc(e.message || e)+'<br>1) 按 F5 刷新重试；2) 检查网络；3) 确认同步脚本已运行。</div>';
     });
     return;
   }
