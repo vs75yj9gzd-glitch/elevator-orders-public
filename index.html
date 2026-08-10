@@ -197,6 +197,27 @@ function absUrl(u){
 function cpolarBase(){
   return (META && META.cpolar_url) || window.APP_CONFIG.CPOLAR_FALLBACK || '';
 }
+// C2: 外网加载时动态获取当前 cpolar 地址。同步守护检测到免费版地址漂移即把最新地址推到 jsDelivr 的 cpolar_url.json, 前端拉它覆盖 orders.json 死地址。走 CDN 不依赖 cpolar 在线。
+function cpolarUrlJsonUrl(){
+  return (DATA_URL || '').replace(/orders\.json(\?.*)?$/i, 'cpolar_url.json');
+}
+function fetchCpolarUrl(){
+  const u = cpolarUrlJsonUrl();
+  if(!u) return Promise.resolve(null);
+  return fetch(u + '?t=' + Date.now(), {cache:'no-store'})
+    .then(r => r.ok ? r.json() : null)
+    .then(j => (j && j.cpolar_url) ? j.cpolar_url : null)
+    .catch(() => null);
+}
+// 所有图片加载失败时统一提示(动态创建的 img 也能捕获)
+document.addEventListener('error', function(e){
+  const el = e.target;
+  if(el && el.tagName === 'IMG'){
+    el.onerror = null;
+    el.style.cssText = 'max-width:200px;height:56px;background:#f5f5f5;color:#999;display:inline-flex;align-items:center;justify-content:center;font-size:12px;border-radius:6px';
+    el.alt = '图片需电脑开机且 cpolar 在线';
+  }
+}, true);
 // 内网访问口令: 不写进仓库, 仅存浏览器本地; 首次写操作时提示输入
 function getPwd(){ return localStorage.getItem('wb_pwd_gh') || ''; }
 function ensurePwd(){
@@ -582,17 +603,32 @@ function loadPage(append=false){
   if(!ALL.length){
     fetch(DATA_URL + '?t=' + Date.now()).then(r => r.json()).then(d => {
       META = d || {};
-      ALL.length = 0;
-      (d.orders || []).forEach(o => {
-        // 内网相对路径(/decrypted/...) -> cpolar 公网绝对地址, 关机时图片打不开但文字可见
-        if(o.img_url) o.img_url = absUrl(o.img_url);
-        if(o.media_url) o.media_url = absUrl(o.media_url);
-        if(o.media_images) o.media_images = o.media_images.map(absUrl);
-        (o.sources || []).forEach(s => { if(s.img_url) s.img_url = absUrl(s.img_url); if(s.media_url) s.media_url = absUrl(s.media_url); });
-        ALL.push(o);
+      // C2: 先动态取当前 cpolar 地址(免费版地址随机变), 成功则覆盖死地址再拼图
+      fetchCpolarUrl().then(fresh => {
+        if(fresh) META.cpolar_url = fresh;
+        ALL.length = 0;
+        (d.orders || []).forEach(o => {
+          // 内网相对路径(/decrypted/...) -> cpolar 公网绝对地址, 关机时图片打不开但文字可见
+          if(o.img_url) o.img_url = absUrl(o.img_url);
+          if(o.media_url) o.media_url = absUrl(o.media_url);
+          if(o.media_images) o.media_images = o.media_images.map(absUrl);
+          (o.sources || []).forEach(s => { if(s.img_url) s.img_url = absUrl(s.img_url); if(s.media_url) s.media_url = absUrl(s.media_url); });
+          ALL.push(o);
+        });
+        applyFilterAndRender();
+        LOADING = false;
+      }).catch(() => {
+        ALL.length = 0;
+        (d.orders || []).forEach(o => {
+          if(o.img_url) o.img_url = absUrl(o.img_url);
+          if(o.media_url) o.media_url = absUrl(o.media_url);
+          if(o.media_images) o.media_images = o.media_images.map(absUrl);
+          (o.sources || []).forEach(s => { if(s.img_url) s.img_url = absUrl(s.img_url); if(s.media_url) s.media_url = absUrl(s.media_url); });
+          ALL.push(o);
+        });
+        applyFilterAndRender();
+        LOADING = false;
       });
-      applyFilterAndRender();
-      LOADING = false;
     }).catch(e => {
       LOADING = false;
       document.getElementById('list').innerHTML = '<div class="empty">加载失败：'+esc(e)+'<br>请确认同步脚本已运行、仓库已公开且 orders.json 已生成。</div>';
