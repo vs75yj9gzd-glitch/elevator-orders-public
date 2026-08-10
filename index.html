@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>盛尧电梯维修工单</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system, "Microsoft YaHei", "PingFang SC", sans-serif; background:#f4f6f9; color:#1f2d3d; }
+  header { background:#1f2d3d; color:#fff; padding:14px 20px; display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  header h1 { font-size:18px; margin:0; }
+  header .ac { font-size:12px; color:#9fb3c8; }
+  .stats { display:flex; gap:10px; margin-left:auto; flex-wrap:wrap; }
+  .stat { background:rgba(255,255,255,.1); padding:4px 10px; border-radius:14px; font-size:12px; }
+  .stat b { font-size:15px; }
+  .proj-nav { padding:10px 20px; display:flex; gap:8px; flex-wrap:wrap; background:#fff; border-bottom:1px solid #e3e7ee; position:sticky; top:0; z-index:5; align-items:center; }
+  .proj-nav a { text-decoration:none; padding:6px 12px; border-radius:18px; background:#eef1f6; color:#334; font-size:13px; cursor:pointer; white-space:nowrap; max-width:240px; overflow:hidden; text-overflow:ellipsis; }
+  .proj-nav a.active { background:#1f2d3d; color:#fff; }
+  .filters { padding:12px 20px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; background:#fff; border-bottom:1px solid #e3e7ee; }
+  .filters button { border:none; padding:8px 14px; border-radius:20px; background:#e3e7ee; cursor:pointer; font-size:13px; }
+  .filters button.on { background:#1f2d3d; color:#fff; }
+  .filters input[type=date] { padding:6px 8px; border:1px solid #ccc; border-radius:6px; font-size:13px; }
+  .filters select { padding:6px 8px; border:1px solid #ccc; border-radius:6px; font-size:13px; }
+  .filters .qb { background:#dfe7f0; }
+  #list { padding:16px 20px; max-width:1100px; margin:0 auto; min-height:200px; }
+  .proj-h { margin:18px 0 10px; font-size:16px; font-weight:600; border-left:4px solid #1f2d3d; padding-left:10px; }
+  .card { background:#fff; border:1px solid #e3e7ee; border-radius:10px; padding:14px 16px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,.04); cursor:pointer; }
+  .card .top { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+  .card .proj { font-weight:600; font-size:15px; }
+  .card .lift { font-size:13px; color:#667; margin-top:2px; }
+  .badge { font-size:12px; padding:3px 9px; border-radius:12px; white-space:nowrap; }
+  .b-pending { background:#fff3cd; color:#8a6d00; }
+  .b-tracking { background:#e0ecff; color:#1a4fa0; }
+  .b-done { background:#d4edda; color:#1d6b33; }
+  .b-overdue { background:#f8d7da; color:#9b1c25; }
+  .b-urgent { background:#fde2e2; color:#c0392b; }
+  .card .content { margin:10px 0; line-height:1.6; white-space:pre-wrap; word-break:break-word; }
+  .card .tags { display:flex; flex-wrap:wrap; gap:6px; margin:8px 0 4px; }
+  .card .chip { font-size:12px; padding:3px 9px; border-radius:11px; background:#eef3f8; color:#3b526b; }
+  .card .chip.chip-urgent { background:#fde2e2; color:#c0392b; }
+  .card .chip.chip-fault { background:#fff3cd; color:#8a6d00; }
+  .card .imgs { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0; }
+  .card .imgs img { max-width:240px; max-height:180px; border-radius:6px; object-fit:cover; border:1px solid #e8e8e8; }
+  .card .media { margin:8px 0; }
+  .card .media video { max-width:240px; max-height:180px; border-radius:6px; border:1px solid #e8e8e8; }
+  .card .imgs img.zoom { max-width:100%; max-height:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:9999; border-radius:12px; box-shadow:0 4px 30px rgba(0,0,0,.3); }
+  .mwrap { position:relative; display:inline-block; }
+  .mbadge { position:absolute; left:6px; bottom:6px; background:rgba(0,0,0,.62); color:#fff; font-size:11px; line-height:1; padding:3px 6px; border-radius:4px; pointer-events:none; }
+  .mbadge.warn { background:rgba(230,126,34,.92); }
+  .card .meta { font-size:14px; color:#556; display:flex; gap:14px; flex-wrap:wrap; margin-top:8px; line-height:1.5; }
+  .card .proc { margin-top:10px; padding:10px 12px; background:#f7f9fc; border-left:3px solid #1f2d3d; border-radius:6px; font-size:13px; line-height:1.7; }
+  .card .proc .pl { color:#778; }
+  .card .btn-row { margin-top:10px; display:flex; gap:8px; }
+  .card .btn-detail { border:none; background:#1f2d3d; color:#fff; padding:6px 16px; border-radius:6px; cursor:pointer; font-size:13px; }
+  .card .btn-detail:disabled { background:#aaa; cursor:default; }
+  .empty { text-align:center; color:#888; padding:50px; }
+  .loading { text-align:center; color:#888; padding:40px; }
+  .more-box { text-align:center; padding:20px 0 40px; }
+  .more-box button { border:none; background:#1f2d3d; color:#fff; padding:8px 24px; border-radius:20px; cursor:pointer; font-size:14px; }
+  .more-box button:disabled { background:#889; cursor:default; }
+  .hint { text-align:center; color:#999; font-size:12px; padding:8px 0; }
+
+  /* 详情弹窗 */
+  .modal-mask { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:1000; padding:16px; }
+  .modal { background:#fff; width:100%; max-width:680px; max-height:90vh; overflow:auto; border-radius:12px; display:flex; flex-direction:column; }
+  .modal-head { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid #e3e7ee; position:sticky; top:0; background:#fff; }
+  .modal-head h3 { margin:0; font-size:16px; }
+  .modal-x { border:none; background:none; font-size:22px; line-height:1; cursor:pointer; color:#888; }
+  .modal-body { padding:14px 18px; }
+  .modal-actions { padding:14px 18px; border-top:1px solid #e3e7ee; position:sticky; bottom:0; background:#fff; }
+  .om-field { margin:7px 0; font-size:15px; line-height:1.6; }
+  .om-field .k { color:#445; margin-right:6px; font-weight:600; }
+  .om-status-badge { display:inline-block; padding:3px 10px; border-radius:12px; font-size:13px; font-weight:600; }
+  .om-status-badge.pending { background:#fff3cd; color:#8a6d00; }
+  .om-status-badge.tracking { background:#e0ecff; color:#1a4fa0; }
+  .om-status-badge.done { background:#d4edda; color:#1d6b33; }
+  .om-section-title { margin:14px 0 6px; font-weight:600; font-size:14px; border-top:1px dashed #e3e7ee; padding-top:12px; }
+  .om-edit-label { display:block; font-size:12px; color:#556; margin:8px 0 4px; }
+  .om-input, .om-textarea { width:100%; padding:8px 10px; border:1px solid #ccd; border-radius:6px; font-size:14px; font-family:inherit; }
+  .om-textarea { min-height:70px; resize:vertical; }
+  .om-form-label { display:block; font-size:13px; color:#334; margin:10px 0 4px; font-weight:600; }
+  .om-tip { color:#c0392b; font-size:12px; margin-top:6px; display:none; }
+  .om-btn-row { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .om-btn { border:none; padding:8px 14px; border-radius:8px; cursor:pointer; font-size:13px; color:#fff; }
+  .om-btn.normal { background:#1d6b33; }
+  .om-btn.temporary { background:#b8860b; }
+  .om-btn.stopped { background:#9b1c25; }
+  .om-btn.parts { background:#1a4fa0; }
+  .om-btn.tech { background:#6a4ca8; }
+  .om-btn.reopen { background:#667; }
+  .om-btn.save { background:#1f2d3d; }
+  .om-history { margin-top:12px; border-top:1px dashed #e3e7ee; padding-top:10px; }
+  .om-history .h-title { font-weight:600; font-size:14px; margin-bottom:6px; }
+  .om-history .h-row { font-size:14px; color:#556; line-height:1.7; }
+  .src-link, .detail-link { color:#2980b9; text-decoration:none; cursor:pointer; }
+  .src-link:hover, .detail-link:hover { text-decoration:underline; }
+  .om-sources { margin-top:12px; border-top:1px dashed #e3e7ee; padding-top:10px; }
+  .om-sources .src-title { font-weight:600; font-size:14px; margin-bottom:6px; cursor:pointer; }
+  .om-sources .src-list { display:none; }
+  .om-sources.open .src-list { display:block; }
+  .om-sources .src-row { font-size:13px; color:#556; padding:8px 0; border-bottom:1px dashed #f0f0f0; line-height:1.6; }
+  .om-sources .src-row .src-meta { color:#778; font-size:12px; margin-bottom:4px; }
+  .om-sources .src-row .src-content { white-space:pre-wrap; word-break:break-word; }
+  .om-sources .src-row img { max-width:120px; max-height:90px; border-radius:4px; margin-top:4px; cursor:pointer; }
+  .om-sources .src-row video { max-width:120px; max-height:90px; border-radius:4px; margin-top:4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>盛尧电梯维修工单</h1>
+  <span class="ac">腾讯云 CloudBase · 固定网址</span>
+  <div class="stats" id="stats"></div>
+  <button id="refresh-btn" style="margin-left:auto;border:none;background:#2980b9;color:#fff;padding:6px 14px;border-radius:14px;cursor:pointer;font-size:13px">刷新</button>
+</header>
+<nav class="proj-nav" id="proj-nav"></nav>
+<div class="filters">
+  <button data-f="all" class="on">全部</button>
+  <button data-f="pending">待处理</button>
+  <button data-f="tracking">跟踪中</button>
+  <button data-f="urgent">紧急</button>
+  <button data-f="overdue">超期未处理</button>
+  <button data-f="done">已完成</button>
+  <span style="width:1px;background:#ddd;margin:0 4px;"></span>
+  <input type="date" id="date-start" placeholder="YYYY/MM/DD" title="开始日期" lang="zh-CN">
+  <input type="date" id="date-end" placeholder="YYYY/MM/DD" title="结束日期" lang="zh-CN">
+  <input type="text" id="search-input" placeholder="搜楼栋/梯号/内容" style="padding:6px 10px;border:1px solid #ccc;border-radius:6px;font-size:13px;width:160px">
+  <button class="qb" id="search-btn">搜索</button>
+  <button class="qb" data-quick="thisMonth">本月</button>
+  <button class="qb" data-quick="lastMonth">上月</button>
+  <button class="qb" data-quick="last7">近7天</button>
+  <button class="qb" data-quick="last30">近30天</button>
+  <button class="qb" id="date-reset">重置</button>
+  <select id="year-select"></select>
+</div>
+<div id="list"><div class="loading">加载中…</div></div>
+
+<div id="order-modal" class="modal-mask" style="display:none">
+  <div class="modal">
+    <div class="modal-head"><h3 id="om-title">工单详情</h3><button class="modal-x" onclick="closeDetail()">×</button></div>
+    <div id="om-body" class="modal-body"></div>
+    <div id="om-actions" class="modal-actions"></div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script>
+// C2 模式: 只读数据来自公开仓库 orders.json, 任何人无需口令即可查看。
+// 写操作(标记完成/编辑/处理)走内网 cpolar, 首次写时由 ensurePwd() 提示输入内网访问口令,
+// 口令存本机浏览器 localStorage('wb_pwd_gh'), 不进仓库。详见下方 getPwd()/ensurePwd()/intranetPost()。
+
+// C2 模式: 公开只读看板, 无需登录口令即可查看。写操作走内网 cpolar, 首次写时提示输入口令。
+window.addEventListener("DOMContentLoaded", () => {
+  if (typeof loadPage === "function") loadPage(false);
+  // 自动轮询：每 5 分钟刷新一次 orders.json (jsDelivr 有缓存, 调用量极低)。
+  // 页面切后台时自动暂停轮询。
+  const POLL_MS = 300000;
+  let pollTimer = setInterval(() => {
+    if (document.hidden) return;
+    if (typeof loadPage === "function") loadPage(false);
+  }, POLL_MS);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) { clearInterval(pollTimer); pollTimer = null; }
+    else if (!pollTimer) { pollTimer = setInterval(() => { if (!document.hidden && typeof loadPage === "function") loadPage(false); }, POLL_MS); }
+  });
+});
+</script>
+<script>
+const DATA_URL = window.APP_CONFIG.DATA_URL;
+const CLOSE_TOKEN = window.APP_CONFIG.CLOSE_TOKEN;
+const EDIT_TOKEN = window.APP_CONFIG.EDIT_TOKEN;
+const PAGE_SIZE = 100;
+const ALL = [];           // 全量工单缓存(来自 orders.json)
+let META = {};            // orders.json 的 meta: cpolar_url 等
+// GitHub 模式无需登录, 隐藏登录遮罩(避免遮挡看板)
+{ const _lg = document.getElementById('loginGate'); if(_lg) _lg.style.display = 'none'; }
+
+const RES_LABEL = { normal:'电梯恢复正常', temporary:'临时处理', stopped:'停梯', parts:'配件待换', tech:'技术手段修复', auto:'自动结单' };
+const STATUS_LABEL = { pending:'待处理', tracking:'跟踪中', done:'已完结' };
+
+let DATA = { orders: [] };
+let FILTER = "all";
+let YEAR = new Date().getFullYear();
+let CUR_PROJ = null;
+let DATE_START = "", DATE_END = "";
+let SEARCH_Q = "";
+let OFFSET = 0, HAS_MORE = true, LOADING = false;
+
+function esc(s){ return (s==null?"":String(s)).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function escAttr(s){ return esc(s); }
+
+// C2: 把内网相对路径(/decrypted/...)拼成 cpolar 公网绝对地址; 非相对路径原样返回
+function absUrl(u){
+  if(!u) return u;
+  if(u.charAt(0) === '/' && META && META.cpolar_url) return META.cpolar_url.replace(/\/+$/,'') + u;
+  return u;
+}
+function cpolarBase(){
+  return (META && META.cpolar_url) || window.APP_CONFIG.CPOLAR_FALLBACK || '';
+}
+// 内网访问口令: 不写进仓库, 仅存浏览器本地; 首次写操作时提示输入
+function getPwd(){ return localStorage.getItem('wb_pwd_gh') || ''; }
+function ensurePwd(){
+  let p = getPwd();
+  if(!p){
+    p = prompt('请输入内网访问口令（向管理员索取），用于在外网标记完成 / 编辑工单：');
+    if(p) localStorage.setItem('wb_pwd_gh', p.trim());
+  }
+  return p ? p.trim() : '';
+}
+// 统一构造内网写操作的 fetch: 自动拼 cpolar 地址 + 访问口令; 内网离线时给出引导
+function intranetPost(path, body){
+  const base = cpolarBase();
+  if(!base){
+    alert('内网当前离线（电脑未开机 / cpolar 未启动）。\n请在电脑开机后到内网看板操作，或稍后重试。');
+    return Promise.reject(new Error('intranet offline'));
+  }
+  const pwd = ensurePwd();
+  if(!pwd){
+    return Promise.reject(new Error('no password'));
+  }
+  const url = base.replace(/\/+$/,'') + path + (path.indexOf('?')>=0?'&':'?') + 'pwd=' + encodeURIComponent(pwd);
+  return fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+}
+
+function calcStats(orders){
+  return {
+    total: orders.length,
+    pending: orders.filter(o => o.status==='pending' && !o.overdue).length,
+    tracking: orders.filter(o => o.status==='tracking').length,
+    urgent: orders.filter(o => o.urgency==='紧急').length,
+    overdue: orders.filter(o => o.overdue).length,
+    done: orders.filter(o => o.status==='done').length
+  };
+}
+function fmtStats(){
+  const s = calcStats(DATA.orders);
+  document.getElementById("stats").innerHTML =
+    ['total','pending','tracking','urgent','overdue','done'].map(k => {
+      const names={total:'总',pending:'待处理',tracking:'跟踪中',urgent:'紧急',overdue:'超期',done:'已完成'};
+      return '<div class="stat">'+names[k]+' <b>'+(s[k]||0)+'</b></div>';
+    }).join('');
+}
+
+function buildNav(){
+  const nav = document.getElementById("proj-nav");
+  const counts = {};
+  DATA.orders.forEach(o => { counts[o.project] = (counts[o.project]||0)+1; });
+  const wl = (window.APP_CONFIG && window.APP_CONFIG.WATCHED_GROUPS) || [];
+  let projs = wl.length ? wl : Object.keys(counts).sort((a,b)=>counts[b]-counts[a]);
+  let total = projs.reduce((s,p)=>s+(counts[p]||0),0);
+  let html = '<a data-p="" class="'+(CUR_PROJ?"":"active")+'">全部项目 ('+total+')</a>';
+  html += projs.map(p => '<a data-p="'+esc(p)+'" class="'+(CUR_PROJ===p?"active":"")+'">'+esc(p)+' ('+(counts[p]||0)+')</a>').join('');
+  nav.innerHTML = html;
+  nav.querySelectorAll('a').forEach(a => a.onclick = () => {
+    CUR_PROJ = a.dataset.p || null;
+    OFFSET = 0; HAS_MORE = true; DATA.orders = [];
+    loadPage();
+  });
+}
+
+function pass(o){
+  if(FILTER==='all') return true;
+  if(FILTER==='pending') return o.status==='pending' && !o.overdue;
+  if(FILTER==='tracking') return o.status==='tracking';
+  if(FILTER==='urgent') return o.urgency==='紧急';
+  if(FILTER==='overdue') return o.overdue;
+  if(FILTER==='done') return o.status==='done';
+  return true;
+}
+
+function statusBadge(o){
+  if(o.overdue && o.status!=='done') return '<span class="badge b-overdue">超期</span>';
+  if(o.status==='done') return '<span class="badge b-done">已完结</span>';
+  if(o.status==='tracking') return '<span class="badge b-tracking">跟踪中</span>';
+  if(o.urgency==='紧急') return '<span class="badge b-urgent">紧急</span>';
+  return '<span class="badge b-pending">待处理</span>';
+}
+
+function getDoneTs(o){
+  if(o.closed_at){ return o.closed_at/1000; }
+  const h = o.history||[];
+  let t=0;
+  for(const x of h){ if(x.status==='done' && x.ts && x.ts>t) t=x.ts; }
+  return t;
+}
+function fmtTime(ts){
+  if(!ts) return '';
+  const d = new Date(ts*1000);
+  const p = n => String(n).padStart(2,'0');
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());
+}
+
+function cardHTML(o){
+  const closed = o.status==='done';
+  const et = o.elevator_type==='客'?'客梯':o.elevator_type==='货'?'货梯':(o.elevator_type||'');
+  const dispContent = o.editable_content || o.content || '(无文字内容)';
+  let dispType = o.editable_type || o.type || '';
+  if(dispType === '计划维修') dispType = '计划更换';
+  const tagFields = [
+    [o.lift, ''], [et, ''], [dispType, ''], [o.editable_phenomenon || o.phenomenon || '', ''],
+    [o.floor, ''], [o.position, ''], [o.urgency, '']
+  ].filter(t => t[0] && t[0] !== '普通');
+  const tags = tagFields.map(t => {
+    let cls = 'chip';
+    if (t[0] === '紧急') cls += ' chip-urgent';
+    else if (/故障|困人|停梯/.test(t[0])) cls += ' chip-fault';
+    return '<span class="'+cls+'">'+esc(t[0])+'</span>';
+  }).join('');
+  let mediaHtml = '';
+  if (o.media_type === 'video' && o.media_url) {
+    mediaHtml = '<div class="media mwrap"><video controls preload="metadata" playsinline src="'+esc(o.media_url)+'" style="max-width:240px;max-height:180px;border-radius:6px;background:#000"></video><span class="mbadge">视频</span></div>';
+  } else {
+    const imgs = o.media_images || (o.img_url ? [o.img_url] : []);
+    if (imgs.length) {
+      const qb = o.img_quality ? '<span class="mbadge'+(o.img_quality==='缩略图'?' warn':'')+'">'+esc(o.img_quality)+'</span>' : '';
+      mediaHtml = '<div class="imgs mwrap">' + imgs.map(u => '<img src="'+esc(u)+'" loading="lazy" onclick="event.stopPropagation();this.classList.toggle(\'zoom\')">').join('') + qb + '</div>';
+    }
+  }
+  // 处理信息块: 处理方式 + 维修人 + 处理说明 + 完成时间
+  let procHtml = '';
+  const resText = (o.status!=='pending' && o.resolution) ? (RES_LABEL[o.resolution]||o.resolution) : '';
+  const doneTs = getDoneTs(o);
+  const doneStr = doneTs ? fmtTime(doneTs) : (o.updated_at ? fmtTime(o.updated_at/1000) : '');
+  if (resText || o.repairer || o.note) {
+    procHtml = '<div class="proc">';
+    if (resText) procHtml += '<div><span class="pl">处理方式：</span>'+esc(resText)+'</div>';
+    if (o.repairer) procHtml += '<div><span class="pl">维修人：</span>'+esc(o.repairer)+'</div>';
+    if (o.note) procHtml += '<div><span class="pl">处理说明：</span>'+esc(o.note)+'</div>';
+    if (doneStr) procHtml += '<div><span class="pl">完成时间：</span>'+esc(doneStr)+'</div>';
+    procHtml += '</div>';
+  }
+  const srcN = (o.sources && o.sources.length) ? o.sources.length : 1;
+  return '<div class="card" data-id="'+esc(o.id)+'" onclick="openDetail(\''+esc(o.id)+'\')">'
+    + '<div class="top"><div><div class="proj">'+esc(o.project||'')+'</div>'
+    + (o.lift?'<div class="lift">'+esc(o.lift)+'</div>':'')
+    + '</div>'+statusBadge(o)+'</div>'
+    + (tags?'<div class="tags">'+tags+'</div>':'')
+    + '<div class="content">'+esc(dispContent)+'</div>'
+    + mediaHtml
+    + '<div class="meta"><span>报修人：'+esc(o.reporter||o.sender||'')+'</span>'
+    + '<span>时间：'+esc(o.created_str||'')+'</span>'
+    + '<span><a class="src-link" href="javascript:void(0)" onclick="event.stopPropagation();openDetail(\''+esc(o.id)+'\');return false;">来源'+srcN+'条</a></span>'
+    + '<span><a class="detail-link" href="javascript:void(0)" onclick="event.stopPropagation();openDetail(\''+esc(o.id)+'\');return false;">查看详情</a></span></div>'
+    + procHtml
+    + '</div>';
+}
+
+function render(){
+  const box = document.getElementById('list');
+  box.innerHTML = '';
+  const arr = DATA.orders;
+  if(!arr.length){ box.innerHTML = '<div class="empty">暂无符合条件的工单</div>'; return; }
+  const limit = OFFSET || PAGE_SIZE;
+  const view = arr.slice(0, limit);
+  // "全部项目"按时间全局平铺，选中具体项目才按项目分组展示，与内网一致
+  if(CUR_PROJ){
+    const h = document.createElement('div'); h.className='proj-h'; h.textContent = CUR_PROJ + '（'+arr.length+'）';
+    box.appendChild(h);
+    const wrap = document.createElement('div');
+    view.forEach(o => wrap.insertAdjacentHTML('beforeend', cardHTML(o)));
+    box.appendChild(wrap);
+  } else {
+    view.forEach(o => box.insertAdjacentHTML('beforeend', cardHTML(o)));
+  }
+  if(limit < arr.length){
+    const more = document.createElement('div'); more.className='more-box';
+    more.innerHTML = '<button id="load-more" onclick="loadMore()">加载更多（'+(arr.length-limit)+'）</button>';
+    box.appendChild(more);
+  } else if(arr.length > PAGE_SIZE) {
+    const hint = document.createElement('div'); hint.className='hint'; hint.textContent = '已加载全部';
+    box.appendChild(hint);
+  }
+}
+
+function loadMore(){
+  OFFSET = (OFFSET || PAGE_SIZE) + PAGE_SIZE;
+  render();
+  const list = document.getElementById('list');
+  if(list) list.scrollIntoView({block:'end'});
+}
+
+function closeOrder(id, btn){
+  btn.disabled = true; btn.textContent = '处理中…';
+  intranetPost('/api/workorder/' + id + '/done', {}).then(r => r.json()).then(d => {
+    if(d && d.ok){
+      const o = DATA.orders.find(x => String(x.id)===String(id));
+      if(o){ o.status='done'; }
+      render(); fmtStats(); buildNav();
+    } else {
+      btn.disabled = false; btn.textContent = '结单';
+      alert('结单失败：' + ((d&&d.error)||'未知错误'));
+    }
+  }).catch(e => { btn.disabled=false; btn.textContent='结单'; if(String(e.message)!=='intranet offline' && String(e.message)!=='no password') alert('网络错误：'+e); });
+}
+
+function openDetail(id){
+  const o = DATA.orders.find(x => String(x.id)===String(id));
+  if(!o) return;
+  const modal = document.getElementById('order-modal');
+  const body = document.getElementById('om-body');
+  const actions = document.getElementById('om-actions');
+  const statusText = STATUS_LABEL[o.status] || o.status;
+  const resText = (o.status!=='pending' && o.resolution) ? (' · '+(RES_LABEL[o.resolution]||o.resolution)) : '';
+  const dispContent = o.editable_content || o.content || '';
+  const dispPhen = o.editable_phenomenon || o.phenomenon || '';
+  let html = '';
+  html += '<div class="om-field"><span class="om-status-badge '+o.status+'">'+esc(statusText)+esc(resText)+'</span></div>';
+  html += '<div class="om-field"><span class="k">项目</span>'+esc(o.project||'')+'</div>';
+  html += '<label class="om-edit-label">梯号<span style="color:#99"> 格式如 3-1 货梯、15-2 客梯</span></label>';
+  html += '<input id="om-lift" class="om-input" placeholder="如 3-1 货梯" value="'+esc((o.editable_lift||o.lift)||'')+'">';
+  if(o.position) html += '<div class="om-field"><span class="k">位置</span>'+esc(o.position)+'</div>';
+  if(o.elevator_type) html += '<div class="om-field"><span class="k">电梯类型</span>'+esc(o.elevator_type)+'梯</div>';
+  html += '<label class="om-edit-label">紧急度</label>';
+  const curUrg = o.editable_urgency || o.urgency || '普通';
+  html += '<select id="om-urgency" class="om-input"><option value="普通" '+(curUrg==='普通'?'selected':'')+'>普通</option><option value="紧急" '+(curUrg==='紧急'?'selected':'')+'>紧急</option></select>';
+  html += '<div class="om-field"><span class="k">报修人</span>'+esc(o.reporter||o.sender||'')+' · '+esc(o.created_str||'')+'</div>';
+  html += '<div class="om-field"><span class="k">来源</span>'+(o.sources?o.sources.length:1)+'条 <span style="color:#9aa">工单号 '+esc(o.id||'')+'</span></div>';
+  const doneTs = getDoneTs(o);
+  const elapsed = doneTs ? (doneTs - (o.created||0)) : (Date.now()/1000 - (o.created||0));
+  html += '<div class="om-field"><span class="k">'+(o.status==='done'?'处理用时':'已报修时长')+'</span>'+fmtDuration(elapsed)+'</div>';
+  if(o.closed_at){
+    html += '<div class="om-field"><span class="k">完成时间</span>'+esc(fmtTime(o.closed_at/1000))+'</div>';
+  }
+  // 已填写的处理信息
+  if(o.resolution || o.repairer || o.note){
+    html += '<div class="om-section-title">已处理信息</div>';
+    if(o.resolution) html += '<div class="om-field"><span class="k">处理方式</span>'+esc(RES_LABEL[o.resolution]||o.resolution)+'</div>';
+    if(o.repairer) html += '<div class="om-field"><span class="k">维修人</span>'+esc(o.repairer)+'</div>';
+    if(o.note) html += '<div class="om-field"><span class="k">处理说明</span><br>'+esc(o.note)+'</div>';
+  }
+  // 报修内容(可编辑)
+  html += '<div class="om-section-title">报修内容（可手动修改）</div>';
+  html += '<textarea id="om-content" class="om-textarea" placeholder="原始报修内容">'+esc(dispContent)+'</textarea>';
+  if(o.media_type==='video' && o.media_url){ html += '<div class="om-field" style="margin-top:8px"><video controls preload="metadata" playsinline src="'+esc(o.media_url)+'" style="max-width:100%;max-height:340px;border-radius:6px;background:#000"></video></div>'; }
+  else if(o.img_url){
+    var qhint = o.img_quality==='缩略图' ? '<div style="font-size:12px;color:#e67e22;margin-top:4px">仅缩略图（发图人未上传高清原图）</div>' : (o.img_quality?'<div style="font-size:12px;color:#27ae60;margin-top:4px">'+esc(o.img_quality)+'</div>':'');
+    html += '<div class="om-field" style="margin-top:8px"><img src="'+esc(o.img_url)+'" style="max-width:100%;max-height:340px;border-radius:6px;cursor:pointer" onclick="window.open(this.src)">'+qhint+'</div>';
+  }
+  // 故障分类(可编辑)
+  html += '<div class="om-section-title">故障分类（AI识别不对可手动改）</div>';
+  html += '<label class="om-edit-label">故障类型<span style="color:#99"> 5类：轻微故障、停梯故障、困人故障、自检发现、计划更换</span></label>';
+  const TYPE_OPTIONS = ['轻微故障','停梯故障','困人故障','自检发现','计划更换'];
+  const dispType = (o.editable_type || o.type || '') === '计划维修' ? '计划更换' : (o.editable_type || o.type || '');
+  html += '<select id="om-type" class="om-input">';
+  html += '<option value=""></option>';
+  for(const opt of TYPE_OPTIONS){
+    html += '<option value="'+esc(opt)+'" '+(dispType===opt?'selected':'')+'>'+esc(opt)+'</option>';
+  }
+  html += '</select>';
+  html += '<label class="om-edit-label">故障现象<span style="color:#99"> 更具体的描述</span></label>';
+  html += '<input id="om-phenomenon" class="om-input" placeholder="如 31楼按键不亮" value="'+esc(dispPhen)+'">';
+  html += renderSources(o);
+  body.innerHTML = html;
+  // 操作区
+  actions.innerHTML = '';
+  const form = document.createElement('div');
+  form.innerHTML = '<label class="om-form-label">维修人（必填）</label>'
+    + '<input id="om-repairer" class="om-input" placeholder="如 刘永" value="'+esc(o.repairer||'')+'">'
+    + '<label class="om-form-label">处理备注（选填）</label>'
+    + '<input id="om-note" class="om-input" placeholder="如 更换14楼按键线一条" value="'+esc(o.note||'')+'">'
+    + '<div class="om-tip" id="om-tip">请填写维修人</div>';
+  actions.appendChild(form);
+  // 保存编辑按钮
+  const saveRow = document.createElement('div'); saveRow.className='om-btn-row';
+  const saveBtn = document.createElement('button'); saveBtn.className='om-btn save'; saveBtn.textContent='保存编辑';
+  saveBtn.onclick = ()=>submitEdit(o.id);
+  saveRow.appendChild(saveBtn);
+  actions.appendChild(saveRow);
+  // 处理操作按钮
+  const btnRow = document.createElement('div'); btnRow.className='om-btn-row';
+  function addBtn(label, cls, st, res){
+    const b = document.createElement('button'); b.className='om-btn '+cls; b.textContent=label;
+    b.onclick = ()=>submitAction(o.id, st, res);
+    btnRow.appendChild(b);
+  }
+  if(o.status==='pending'){
+    addBtn('电梯恢复正常','normal','done','normal');
+    addBtn('临时处理','temporary','tracking','temporary');
+    addBtn('停梯','stopped','tracking','stopped');
+    addBtn('配件待换','parts','tracking','parts');
+    addBtn('技术手段修复','tech','done','tech');
+  } else if(o.status==='tracking'){
+    addBtn('电梯已恢复正常','normal','done','normal');
+    addBtn('已更换配件','parts','done','parts');
+    addBtn('继续临时处理','temporary','tracking','temporary');
+    addBtn('继续停梯','stopped','tracking','stopped');
+  } else {
+    addBtn('重新打开','reopen','pending',null);
+  }
+  actions.appendChild(btnRow);
+  modal.style.display = 'flex';
+}
+function closeDetail(){ document.getElementById('order-modal').style.display='none'; }
+document.getElementById('order-modal').addEventListener('click', function(e){ if(e.target===this) closeDetail(); });
+
+function fmtDuration(sec){
+  sec = Math.max(0, Math.floor(sec));
+  const d = Math.floor(sec/86400), h = Math.floor((sec%86400)/3600), m = Math.floor((sec%3600)/60);
+  if(d>0) return d+'天'+h+'小时';
+  if(h>0) return h+'小时'+m+'分';
+  return m+'分';
+}
+function renderSources(o){
+  const sources = o.sources || [];
+  if(!sources.length) return '';
+  let html = '<div class="om-sources" id="om-sources"><div class="src-title" onclick="toggleSources(this)">来源消息 ('+sources.length+'条) ▾</div><div class="src-list">';
+  for(const s of sources){
+    const sender = s.sender || o.sender || '';
+    const time = s.time || '';
+    const mtype = s.mtype || '文字';
+    html += '<div class="src-row"><div class="src-meta">'+esc(time)+(sender?' · '+esc(sender):'')+' · '+esc(mtype)+'</div>';
+    if(s.content) html += '<div class="src-content">'+esc(s.content)+'</div>';
+    if(s.media_type === 'video' || s.mtype === '视频'){
+      const u = s.media_url || s.img_url;
+      if(u) html += '<video controls preload="metadata" playsinline src="'+esc(u)+'"></video>';
+    } else if(s.img_url){
+      html += '<img src="'+esc(s.img_url)+'" onclick="window.open(this.src)">';
+    }
+    html += '</div>';
+  }
+  html += '</div></div>';
+  return html;
+}
+function toggleSources(el){
+  const box = document.getElementById('om-sources');
+  if(box){
+    box.classList.toggle('open');
+    const n = box.querySelectorAll('.src-row').length;
+    el.textContent = box.classList.contains('open') ? '来源消息 ('+n+'条) ▴' : '来源消息 ('+n+'条) ▾';
+  }
+}
+
+function submitEdit(id){
+  const content = (document.getElementById('om-content')||{}).value || '';
+  const lift = (document.getElementById('om-lift')||{}).value || '';
+  const urgency = (document.getElementById('om-urgency')||{}).value || '';
+  const type = (document.getElementById('om-type')||{}).value || '';
+  const phen = (document.getElementById('om-phenomenon')||{}).value || '';
+  const body = {};
+  if(content.trim()) body.content = content.trim();
+  if(lift.trim()) body.lift = lift.trim();
+  if(urgency.trim()) body.urgency = urgency.trim();
+  if(type.trim()) body.type = type.trim();
+  if(phen.trim()) body.phenomenon = phen.trim();
+  intranetPost('/api/workorder/' + id + '/edit', body).then(r=>r.json()).then(d=>{
+    if(d && d.ok){
+      const o = DATA.orders.find(x => String(x.id)===String(id));
+      if(o){
+        if(content.trim()) o.editable_content=content;
+        if(lift.trim()) o.editable_lift=lift;
+        if(urgency.trim()) o.editable_urgency=urgency;
+        if(type.trim()) o.editable_type=type;
+        if(phen.trim()) o.editable_phenomenon=phen;
+      }
+      closeDetail(); render(); fmtStats();
+    } else { alert((d&&d.error)||'保存失败'); }
+  }).catch(e=>{ alert('保存失败:'+e); });
+}
+
+function submitAction(id, st, res){
+  const repairer = ((document.getElementById('om-repairer')||{}).value || '').trim();
+  const note = ((document.getElementById('om-note')||{}).value || '').trim();
+  if(st !== 'pending' && !repairer){
+    const tip = document.getElementById('om-tip');
+    if(tip){ tip.style.display='block'; }
+    return;
+  }
+  intranetPost('/api/workorder/' + id + '/update', { status: st, resolution: res, repairer: repairer, note: note }).then(r=>r.json()).then(d=>{
+    if(d && d.ok){
+      const o = DATA.orders.find(x => String(x.id)===String(id));
+      if(o){ o.status=st; if(res) o.resolution=res; if(repairer) o.repairer=repairer; if(note!==undefined) o.note=note; }
+      closeDetail(); render(); fmtStats(); buildNav();
+    } else { alert((d&&d.error)||'操作失败'); }
+  }).catch(e=>{ if(String(e.message)!=='intranet offline' && String(e.message)!=='no password') alert('操作失败:'+e); });
+}
+
+function loadPage(append=false){
+  if(LOADING) return;
+  LOADING = true;
+  if(!append){ OFFSET = 0; document.getElementById('list').innerHTML = '<div class="loading">加载中…</div>'; }
+  // 首次或数据为空时拉 orders.json (jsDelivr 加速, 调用量极低)
+  if(!ALL.length){
+    fetch(DATA_URL + '?t=' + Date.now()).then(r => r.json()).then(d => {
+      META = d || {};
+      ALL.length = 0;
+      (d.orders || []).forEach(o => {
+        // 内网相对路径(/decrypted/...) -> cpolar 公网绝对地址, 关机时图片打不开但文字可见
+        if(o.img_url) o.img_url = absUrl(o.img_url);
+        if(o.media_url) o.media_url = absUrl(o.media_url);
+        if(o.media_images) o.media_images = o.media_images.map(absUrl);
+        (o.sources || []).forEach(s => { if(s.img_url) s.img_url = absUrl(s.img_url); if(s.media_url) s.media_url = absUrl(s.media_url); });
+        ALL.push(o);
+      });
+      applyFilterAndRender();
+      LOADING = false;
+    }).catch(e => {
+      LOADING = false;
+      document.getElementById('list').innerHTML = '<div class="empty">加载失败：'+esc(e)+'<br>请确认同步脚本已运行、仓库已公开且 orders.json 已生成。</div>';
+    });
+    return;
+  }
+  applyFilterAndRender();
+  LOADING = false;
+}
+// 本地筛选 + 分页渲染(数据已在 ALL, 无需服务端)
+function applyFilterAndRender(){
+  OFFSET = PAGE_SIZE;
+  const q = SEARCH_Q.toLowerCase();
+  const arr = ALL.filter(o => pass(o)
+    && (!DATE_START || (o.created_str||'').slice(0,10) >= DATE_START)
+    && (!DATE_END || (o.created_str||'').slice(0,10) <= DATE_END)
+    && (String(YEAR) ? (o.created_str||'').slice(0,4) === String(YEAR) : true)
+    && (CUR_PROJ ? o.project === CUR_PROJ : true)
+    && (q ? ((o.content||o.editable_content||'')+' '+(o.project||'')).toLowerCase().includes(q) : true)
+  );
+  DATA.orders = arr;
+  fmtStats(); buildNav(); render();
+}
+
+// 筛选栏
+document.querySelectorAll('.filters button[data-f]').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.filters button[data-f]').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on'); FILTER = b.dataset.f; loadPage();
+});
+function applyQuick(q){
+  const now = new Date(); const y = now.getFullYear(), m = now.getMonth();
+  if(q==='thisMonth'){ DATE_START = y+'-'+String(m+1).padStart(2,'0')+'-01'; DATE_END=''; }
+  else if(q==='lastMonth'){ const lm=m-1; const ly=lm<0?y-1:y; const lm2=lm<0?11:lm; DATE_START=ly+'-'+String(lm2+1).padStart(2,'0')+'-01'; DATE_END=y+'-'+String(m+1).padStart(2,'0')+'-01'; }
+  else if(q==='last7'){ const d=new Date(now-7*864e5); DATE_START=d.toISOString().slice(0,10); DATE_END=''; }
+  else if(q==='last30'){ const d=new Date(now-30*864e5); DATE_START=d.toISOString().slice(0,10); DATE_END=''; }
+  document.getElementById('date-start').value = DATE_START; document.getElementById('date-end').value = DATE_END||'';
+  loadPage();
+}
+document.querySelectorAll('.filters button[data-quick]').forEach(b => b.onclick = () => applyQuick(b.dataset.quick));
+document.getElementById('date-start').onchange = e => { DATE_START=e.target.value; loadPage(); };
+document.getElementById('date-end').onchange = e => { DATE_END=e.target.value; loadPage(); };
+function applySearch(){
+  const v = (document.getElementById('search-input').value || '').trim();
+  SEARCH_Q = v;
+  loadPage();
+}
+document.getElementById('search-btn').onclick = applySearch;
+document.getElementById('search-input').onkeydown = e => { if(e.key==='Enter') applySearch(); };
+document.getElementById('date-reset').onclick = () => {
+  DATE_START=''; DATE_END=''; FILTER='all'; CUR_PROJ=null; YEAR=new Date().getFullYear(); SEARCH_Q='';
+  document.getElementById('date-start').value=''; document.getElementById('date-end').value='';
+  document.getElementById('search-input').value='';
+  document.querySelectorAll('.filters button[data-f]').forEach(x=>x.classList.remove('on'));
+  document.querySelector('.filters button[data-f="all"]').classList.add('on');
+  document.getElementById('year-select').value = YEAR;
+  loadPage();
+};
+const refreshBtn = document.getElementById('refresh-btn');
+if(refreshBtn){
+  refreshBtn.onclick = () => {
+    refreshBtn.disabled = true; refreshBtn.textContent = '刷新中…';
+    ALL.length = 0;   // 强制重新拉取 orders.json
+    loadPage(false);
+    setTimeout(() => { refreshBtn.disabled = false; refreshBtn.textContent = '刷新'; }, 800);
+  };
+}
+const ys = document.getElementById('year-select');
+for(let y=2024; y<=new Date().getFullYear(); y++){ const o=document.createElement('option'); o.value=y; o.textContent=y+'年'; ys.appendChild(o); }
+ys.value = YEAR;
+ys.onchange = () => { YEAR=parseInt(ys.value); loadPage(); };
+
+loadPage();
+</script>
+</body>
+</html>
